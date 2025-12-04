@@ -1,158 +1,947 @@
-# Flutter Starter Project Structure
+# Flutter Clean Architecture Starter - Project Documentation
 
-This document provides a high-level overview of the project's structure, which is based on the principles of Clean Architecture. The goal is to separate concerns, making the codebase more modular, scalable, and maintainable.
+## 📋 Table of Contents
 
-## Core Principles
-
-- **Clean Architecture:** The project is divided into three main layers: Presentation, Domain, and Data.
-- **Modularity:** Features and layers are encapsulated in local packages (`packages/`).
-- **Dependency Injection:** `get_it` and `injectable` are used to provide dependencies, promoting loose coupling.
-- **Environment-specific Configurations:** The application can be run in different environments (e.g., `dev`, `prod`) with different configurations.
-
-## Directory and Layer Breakdown
-
-### 1. Presentation Layer (`lib/`)
-
-This is the top-level layer that the user interacts with. It is responsible for the UI and the UI-level state management.
-
-- `lib/main.dart`: The entry point of the application which sets up the correct environment.
-- `lib/mode/`: Contains environment-specific configurations.
-  - `env.dart`: Abstract class for environment setup.
-  - `dev/` & `prod/`: Concrete implementations for development and production environments. This is where different API base URLs or logging configurations are set.
-- `lib/src/application.dart`: The root widget of the application, where `MaterialApp.router` is configured with themes, routes, and global `BlocProvider`s.
-- `lib/src/bootstrap.dart`: Handles the initialization of all services and dependencies for the app using `get_it`.
-- `lib/src/blocs/`: Contains the business logic components (BLoCs/Cubits) for managing the state of the UI. They respond to UI events and interact with the Domain layer.
-- `lib/src/ui/`: Contains all the widgets and screens that make up the user interface.
-- `lib/src/routes/`: Defines the application's navigation routes using `go_router`.
-- `lib/src/extensions/`, `lib/src/utils/`, etc.: Utility and helper code for the presentation layer.
-
-### 2. Domain Layer (`packages/core_sdk/`)
-
-This is the core of the application. It contains the business logic and rules, independent of any UI or data source. **This layer should not have any dependency on Flutter.**
-
-- `packages/core_sdk/lib/domain/models/`: Defines the pure Dart models for business objects (e.g., `UserModel`, `ProductModel`).
-- `packages/core_sdk/lib/domain/repositories/`: Defines the abstract contracts (interfaces) for data repositories (e.g., `AuthRepository`, `ProfileRepository`). The Presentation layer will use these interfaces.
-- `packages/core_sdk/lib/domain/networks/`: Defines the abstract contracts for network-specific actions (e.g., `AuthNetwork` with a `login` method). This separates data fetching logic from local database logic.
-
-### 3. Data Layer (`packages/core_sdk_impl/` & `packages/json_client/`)
-
-This layer is responsible for fetching data from various sources. It provides the concrete implementation of the contracts defined in the Domain Layer.
-
-- `packages/core_sdk_impl/`: The main data layer implementation.
-  - `lib/src/repositories/`: Contains the concrete implementation of the repository interfaces from the Domain Layer (e.g., `AuthRepositoryImpl`). These classes often manage data from both a local database and a remote network source.
-  - `lib/src/networks/`: Contains implementations of the network contracts from the Domain Layer (e.g., `AuthNetworkImpl`).
-  - `lib/src/apis/`: Defines the specific API endpoints. Each class (e.g., `LoginApi`) specifies the HTTP method, path, and request/response objects for a single API call.
-  - `lib/src/database/`: Contains the local database setup, including Data Access Objects (DAOs) for interacting with the database (e.g., using Isar).
-- `packages/json_client/`: A generic, reusable package for making HTTP requests. The `...Api` classes in `core_sdk_impl` use this client to execute the actual network calls. It is configured in `core_sdk_impl/src/apis/base/base_object_api.dart`.
+1. [Project Overview](#project-overview)
+2. [Architecture](#architecture)
+3. [Project Structure](#project-structure)
+4. [Asset Management with flutter_gen](#asset-management-with-flutter_gen)
+5. [How to Integrate New APIs](#how-to-integrate-new-apis)
+6. [State Management](#state-management)
+7. [Routing](#routing)
+8. [Database](#database)
+9. [Development Workflow](#development-workflow)
+10. [Best Practices](#best-practices)
 
 ---
 
-## How to Make an API Call (Step-by-Step)
+## 🎯 Project Overview
 
-This guide walks through the process of adding a new API call, following the project's architecture. Let's imagine we want to fetch a user's profile.
+This is a **Clean Architecture Flutter Starter** project designed for scalable, maintainable, and testable mobile applications. The project follows industry best practices with a modular architecture using local packages.
 
-### Step 1: Define the Model (Domain Layer)
+### Key Features
 
-Create a Dart model for your data in `packages/core_sdk/lib/domain/models/`.
+- ✅ **Clean Architecture** with clear separation of concerns
+- ✅ **Modular Package Structure** for better code organization
+- ✅ **Type-Safe Asset Management** with flutter_gen
+- ✅ **BLoC/Cubit** for state management
+- ✅ **Go Router** for declarative navigation
+- ✅ **Isar Database** for local data persistence
+- ✅ **Dio HTTP Client** with custom JSON client wrapper
+- ✅ **Dependency Injection** using get_it and injectable
+- ✅ **Internationalization** support (i18n/l10n)
 
-_Example: `packages/core_sdk/lib/domain/models/profile/user_profile.dart`_
+---
+
+## 🏗️ Architecture
+
+This project implements **Clean Architecture** with three distinct layers:
+
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        UI[UI Screens & Widgets]
+        BLOC[BLoC/Cubit]
+    end
+    
+    subgraph "Domain Layer"
+        MODELS[Models/Entities]
+        REPOS[Repository Interfaces]
+        NETWORKS[Network Interfaces]
+    end
+    
+    subgraph "Data Layer"
+        REPO_IMPL[Repository Implementations]
+        NETWORK_IMPL[Network Implementations]
+        API[API Clients]
+        DAO[Database DAOs]
+    end
+    
+    UI --> BLOC
+    BLOC --> REPOS
+    REPOS --> REPO_IMPL
+    REPO_IMPL --> DAO
+    BLOC --> NETWORKS
+    NETWORKS --> NETWORK_IMPL
+    NETWORK_IMPL --> API
+```
+
+### Layer Responsibilities
+
+#### 1. **Presentation Layer** (`lib/src/ui/`)
+- **Screens**: UI components and pages
+- **Widgets**: Reusable UI components
+- **BLoCs/Cubits**: State management logic
+
+#### 2. **Domain Layer** (`packages/core_sdk/lib/domain/`)
+- **Models**: Data entities and DTOs
+- **Repository Interfaces**: Abstract contracts for data access
+- **Network Interfaces**: Abstract contracts for API calls
+
+#### 3. **Data Layer** (`packages/core_sdk_impl/lib/src/`)
+- **Repository Implementations**: Concrete implementations of repository interfaces
+- **Network Implementations**: Concrete implementations of network interfaces
+- **APIs**: HTTP client configurations and API endpoints
+- **DAOs**: Database access objects for Isar
+
+---
+
+## 📁 Project Structure
+
+```
+flutter-starter/
+├── lib/
+│   ├── src/
+│   │   ├── assets/          # Asset reference classes (replaced by flutter_gen)
+│   │   ├── blocs/           # BLoC/Cubit state management
+│   │   ├── data/            # App-level data (Prefs, etc.)
+│   │   ├── enums/           # Enumerations
+│   │   ├── extensions/      # Dart extensions
+│   │   ├── models/          # App-level models
+│   │   ├── routes/          # Go Router configuration
+│   │   ├── theme/           # Theme definitions
+│   │   ├── ui/              # UI screens and widgets
+│   │   └── utils/           # Utility functions
+│   ├── l10n/                # Localization files
+│   ├── gen/                 # Generated code (flutter_gen assets)
+│   ├── application.dart     # Main app widget
+│   └── bootstrap.dart       # App initialization
+│
+├── packages/
+│   ├── common_sdk/          # Common utilities and DI
+│   ├── core_sdk/            # Domain layer (interfaces, models)
+│   ├── core_sdk_impl/       # Data layer (implementations)
+│   ├── isar_e2m/            # Isar database wrapper
+│   └── json_client/         # Dio HTTP client wrapper
+│
+├── assets/
+│   ├── fonts/               # Font files
+│   ├── images/              # Image assets (PNG, JPG)
+│   ├── svgs/                # SVG assets
+│   └── others/              # Other assets
+│
+├── android/                 # Android platform code
+├── ios/                     # iOS platform code
+├── linux/                   # Linux platform code
+├── macos/                   # macOS platform code
+├── windows/                 # Windows platform code
+└── web/                     # Web platform code
+```
+
+### Local Packages Overview
+
+| Package | Purpose |
+|---------|---------|
+| **common_sdk** | Common utilities, dependency injection setup (get_it) |
+| **core_sdk** | Domain layer - interfaces, models, entities |
+| **core_sdk_impl** | Data layer - implementations of repositories and networks |
+| **isar_e2m** | Wrapper around Isar database for easy-to-use persistence |
+| **json_client** | Wrapper around Dio for HTTP requests with custom configurations |
+
+---
+
+## 🎨 Asset Management with flutter_gen
+
+### Overview
+
+This project uses **flutter_gen** for type-safe, auto-generated asset references. This eliminates manual string paths and provides compile-time safety.
+
+### Configuration
+
+In [pubspec.yaml](file:///e:/flutter-starter%20-%20working/pubspec.yaml):
+
+```yaml
+dev_dependencies:
+  flutter_gen: ^5.12.0
+
+flutter_gen:
+  output: lib/gen/
+  line_length: 80
+  
+  integrations:
+    flutter_svg: true
+    
+flutter:
+  assets:
+    - assets/images/
+    - assets/svgs/
+  
+  fonts:
+    - family: inter
+      fonts:
+        - asset: assets/fonts/inter.ttf
+```
+
+### Usage
+
+#### Before (Manual):
 ```dart
-class UserProfile {
+import 'package:clean_starter/src/assets/images/image_assets.dart';
+import 'package:clean_starter/src/assets/svgs/svg_assets.dart';
+
+// Using manual string paths
+Image.asset(ImageAssets.logo);
+SvgPicture.asset(SvgAssets.user);
+```
+
+#### After (flutter_gen):
+```dart
+import 'package:clean_starter/gen/assets.gen.dart';
+
+// Type-safe, auto-completed asset references
+Image.asset(Assets.images.logo.path);
+SvgPicture.asset(Assets.svgs.user.path);
+
+// Or use the convenience methods
+Assets.images.logo.image();
+Assets.svgs.user.svg();
+```
+
+### Generating Assets
+
+After adding new assets to the `assets/` directory:
+
+```bash
+# Generate asset references
+dart run build_runner build --delete-conflicting-outputs
+
+# Or watch for changes
+dart run build_runner watch
+```
+
+### Available Assets
+
+**Images** (`Assets.images.*`):
+- `logo` - App logo (PNG)
+- `empty` - Empty state placeholder (PNG)
+
+**SVGs** (`Assets.svgs.*`):
+- `user`, `lock`, `hide`, `show` - Form icons
+- `check`, `unCheck` - Checkbox icons
+- `home`, `profile` - Navigation icons
+- `bell` - Notification icon
+- `appbarBack`, `appbarSearch` - App bar icons
+- `error`, `noData` - State icons
+- `logo` - Logo SVG version
+
+**Fonts** (`Assets.fonts.*`):
+- `inter` - Inter font family
+
+---
+
+## 🔌 How to Integrate New APIs
+
+This section provides a comprehensive guide for adding new API endpoints to the project.
+
+### Step-by-Step Guide
+
+#### 1. Define the Domain Model
+
+**Location**: `packages/core_sdk/lib/domain/models/`
+
+Create request and response models for your API.
+
+**Example**: Creating a User Profile API
+
+```dart
+// packages/core_sdk/lib/domain/models/user/user_model.dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'user_model.freezed.dart';
+part 'user_model.g.dart';
+
+@freezed
+class UserModel with _$UserModel {
+  const factory UserModel({
+    required String id,
+    required String name,
+    required String email,
+    String? avatar,
+  }) = _UserModel;
+
+  factory UserModel.fromJson(Map<String, dynamic> json) =>
+      _$UserModelFromJson(json);
+}
+```
+
+**Export the model**:
+```dart
+// packages/core_sdk/lib/domain/models/user/models.dart
+export 'user_model.dart';
+```
+
+#### 2. Define the Network Interface
+
+**Location**: `packages/core_sdk/lib/domain/networks/`
+
+Create an abstract interface for the API operations.
+
+```dart
+// packages/core_sdk/lib/domain/networks/user_network.dart
+import 'package:common_sdk/common_sdk.dart';
+import 'package:core_sdk/domain/domain.dart';
+
+abstract class UserNetwork {
+  Future<Either<FailureModel, UserModel>> getProfile(String userId);
+  Future<Either<FailureModel, UserModel>> updateProfile(UserModel user);
+}
+```
+
+**Export the network**:
+```dart
+// packages/core_sdk/lib/domain/networks/networks.dart
+export 'user_network.dart';
+```
+
+#### 3. Create the API Client
+
+**Location**: `packages/core_sdk_impl/lib/src/apis/`
+
+Create the API client with request/response DTOs.
+
+```dart
+// packages/core_sdk_impl/lib/src/apis/user/get_profile_api.dart
+import 'package:common_sdk/common_sdk.dart';
+import 'package:core_sdk/core_sdk.dart';
+import 'package:core_sdk_impl/src/apis/api_endpoints.dart';
+import 'package:core_sdk_impl/src/apis/base/base_object_api.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:json_client/json_client.dart';
+
+part 'get_profile_api.g.dart';
+part 'get_profile_request.dart';
+part 'get_profile_response.dart';
+
+@singleton
+class GetProfileApi extends BaseJsonObjectApi<GetProfileRequest, GetProfileResponse> {
+  GetProfileApi()
+      : super(
+          path: ApiEndpoints.userProfile,
+          method: ApiMethod.get,
+          refreshToken: true,
+        );
+
+  Future<Either<FailureModel, UserModel>> call(String userId) async {
+    final request = GetProfileRequest(userId: userId);
+    try {
+      final response = await apiCall(req: request);
+      return response.fold(
+        (failure) {
+          Logger.shared.log('GetProfileAPI (FAILURE): ${failure.toModel()}');
+          return Left(failure.toModel());
+        },
+        (response) {
+          Logger.shared.log('GetProfileAPI (SUCCESS): ${response.toModel()}');
+          return Right(response.toModel());
+        },
+      );
+    } catch (e) {
+      Logger.shared.log('GetProfileAPI (FAILURE+): $e');
+      return Left(FailureModel.generic());
+    }
+  }
+
+  @override
+  GetProfileResponse convertResponse(Map<String, dynamic> json) {
+    return GetProfileResponse.fromJson(json);
+  }
+}
+```
+
+**Request DTO**:
+```dart
+// Part of get_profile_api.dart
+part 'get_profile_request.dart';
+
+@JsonSerializable()
+class GetProfileRequest {
+  final String userId;
+
+  GetProfileRequest({required this.userId});
+
+  Map<String, dynamic> toJson() => _$GetProfileRequestToJson(this);
+}
+```
+
+**Response DTO**:
+```dart
+// Part of get_profile_api.dart
+part 'get_profile_response.dart';
+
+@JsonSerializable()
+class GetProfileResponse {
   final String id;
   final String name;
   final String email;
+  final String? avatar;
 
-  UserProfile({required this.id, required this.name, required this.email});
-}
-```
+  GetProfileResponse({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.avatar,
+  });
 
-### Step 2: Define the Network Contract (Domain Layer)
+  factory GetProfileResponse.fromJson(Map<String, dynamic> json) =>
+      _$GetProfileResponseFromJson(json);
 
-Define the method that will fetch the data in a network interface.
-
-_Example: `packages/core_sdk/lib/domain/networks/profile_network.dart`_
-```dart
-abstract class ProfileNetwork {
-  Future<Either<FailureModel, UserProfile>> getProfile(String userId);
-}
-```
-
-### Step 3: Create the API Endpoint Class (Data Layer)
-
-Create a class that defines the specific API endpoint. This class will live in `packages/core_sdk_impl/lib/src/apis/`.
-
-_Example: `packages/core_sdk_impl/lib/src/apis/profile/get_profile_api.dart`_
-```dart
-@singleton
-class GetProfileApi extends BaseJsonObjectApi<EmptyRequest, ProfileResponse> {
-  GetProfileApi()
-    : super(
-        path: ApiEndpoints.profile, // e.g., '/users/{userId}'
-        method: ApiMethod.get,
-        sendToken: true, // This endpoint requires authentication
+  UserModel toModel() => UserModel(
+        id: id,
+        name: name,
+        email: email,
+        avatar: avatar,
       );
-
-  // The 'call' method will trigger 'apiCall' from the base class
-  Future<Either<FailureModel, ProfileResponse>> call({required String userId}) {
-    return apiCall(
-      pathParams: {'userId': userId}, // For replacing {userId} in the path
-      req: const EmptyRequest(),
-    );
-  }
-
-  @override
-  ProfileResponse convertResponse(Map<String, dynamic> json) {
-    return ProfileResponse.fromJson(json); // Uses a generated fromJson
-  }
-}
-```
-*Note: You would also create `ProfileResponse` with its own `fromJson` factory.*
-
-### Step 4: Implement the Network Contract (Data Layer)
-
-Provide the concrete implementation for the network contract defined in Step 2.
-
-_Example: `packages/core_sdk_impl/lib/src/networks/profile_network_impl.dart`_
-```dart
-@Singleton(as: ProfileNetwork)
-class ProfileNetworkImpl implements ProfileNetwork {
-  @override
-  Future<Either<FailureModel, UserProfile>> getProfile(String userId) async {
-    // Get the API class from the service locator
-    final getProfileApi = DataGetIt.shared.get<GetProfileApi>();
-
-    // Call the API and handle the response
-    final response = await getProfileApi.call(userId: userId);
-
-    return response.fold(
-      (failure) => Left(failure.toModel()),
-      (profileResponse) => Right(profileResponse.toModel()), // Convert response to domain model
-    );
-  }
 }
 ```
 
-### Step 5: Call from the BLoC (Presentation Layer)
+#### 4. Add API Endpoint
 
-Finally, use the network contract from your BLoC/Cubit to fetch the data and manage the UI state.
+**Location**: `packages/core_sdk_impl/lib/src/apis/api_endpoints.dart`
 
-_Example: `lib/src/blocs/profile/profile_cubit.dart`_
 ```dart
-@injectable
-class ProfileCubit extends Cubit<ProfileState> {
-  final ProfileNetwork _profileNetwork; // Injected dependency
+abstract class ApiEndpoints {
+  static const String login = '/auth/login';
+  static const String userProfile = '/user/profile'; // Add this
+}
+```
 
-  ProfileCubit(this._profileNetwork) : super(ProfileInitial());
+#### 5. Implement the Network Interface
 
-  Future<void> fetchUserProfile(String userId) async {
-    emit(ProfileLoading());
-    final result = await _profileNetwork.getProfile(userId);
+**Location**: `packages/core_sdk_impl/lib/src/networks/`
+
+```dart
+// packages/core_sdk_impl/lib/src/networks/user_network_impl.dart
+import 'package:common_sdk/common_sdk.dart';
+import 'package:core_sdk/domain/domain.dart';
+import 'package:core_sdk_impl/src/apis/user/get_profile_api.dart';
+import 'package:core_sdk_impl/src/data_get_it.dart';
+import 'package:injectable/injectable.dart';
+
+@Singleton(as: UserNetwork)
+class UserNetworkImpl implements UserNetwork {
+  @override
+  Future<Either<FailureModel, UserModel>> getProfile(String userId) =>
+      DataGetIt.shared.get<GetProfileApi>().call(userId);
+
+  @override
+  Future<Either<FailureModel, UserModel>> updateProfile(UserModel user) {
+    // Implement update logic
+    throw UnimplementedError();
+  }
+}
+```
+
+#### 6. Create Repository Interface (Optional)
+
+**Location**: `packages/core_sdk/lib/domain/repositories/`
+
+If you need local caching with Isar:
+
+```dart
+// packages/core_sdk/lib/domain/repositories/user_repository.dart
+import 'package:core_sdk/domain/domain.dart';
+import 'package:core_sdk/domain/repositories/base_repository.dart';
+
+abstract class UserRepository extends BaseRepository<UserModel> {
+  Future<UserModel?> getCurrentUser();
+}
+```
+
+#### 7. Implement Repository (Optional)
+
+**Location**: `packages/core_sdk_impl/lib/src/repositories/`
+
+```dart
+// packages/core_sdk_impl/lib/src/repositories/user_repository_impl.dart
+import 'package:core_sdk/domain/domain.dart';
+import 'package:core_sdk_impl/src/data_get_it.dart';
+import 'package:core_sdk_impl/src/database/daos/user_dao.dart';
+import 'package:core_sdk_impl/src/repositories/base_repository_impl.dart';
+import 'package:injectable/injectable.dart';
+
+@Singleton(as: UserRepository)
+class UserRepositoryImpl extends BaseRepositoryImpl<UserModel>
+    implements UserRepository {
+  @override
+  UserDao getDao() => DataGetIt.shared.get<UserDao>();
+
+  @override
+  Future<UserModel?> getCurrentUser() async {
+    final users = await getDao().getAll();
+    return users.isNotEmpty ? users.first : null;
+  }
+}
+```
+
+#### 8. Generate Code
+
+Run code generation for freezed, json_serializable, and injectable:
+
+```bash
+# In the main project
+cd e:\flutter-starter - working
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+
+# In core_sdk package
+cd packages/core_sdk
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+
+# In core_sdk_impl package
+cd ../core_sdk_impl
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+```
+
+#### 9. Use in BLoC/Cubit
+
+**Location**: `lib/src/blocs/`
+
+```dart
+// lib/src/blocs/user/user_cubit.dart
+import 'package:common_sdk/common_sdk.dart';
+import 'package:core_sdk/core_sdk.dart';
+import 'package:core_sdk_impl/core_sdk_impl.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class UserCubit extends Cubit<UserModel?> {
+  UserCubit() : super(null);
+
+  final _networks = CoreSdkImpl.shared.getNetworks();
+
+  Future<void> loadProfile(String userId) async {
+    final result = await _networks.userNetwork.getProfile(userId);
     result.fold(
-      (failure) => emit(ProfileError(failure.message)),
-      (userProfile) => emit(ProfileLoaded(userProfile)),
+      (failure) {
+        Logger.shared.log('Failed to load profile: ${failure.message}');
+        SnackBarHelper.showError(failure.message);
+      },
+      (user) {
+        emit(user);
+      },
     );
   }
 }
 ```
 
-This structured approach ensures that every part of the process is decoupled and testable, making the codebase robust and easy to maintain.
+### API Integration Checklist
+
+- [ ] Define domain models in `core_sdk/lib/domain/models/`
+- [ ] Create network interface in `core_sdk/lib/domain/networks/`
+- [ ] Implement API client in `core_sdk_impl/lib/src/apis/`
+- [ ] Add endpoint to `api_endpoints.dart`
+- [ ] Implement network interface in `core_sdk_impl/lib/src/networks/`
+- [ ] (Optional) Create repository interface in `core_sdk/lib/domain/repositories/`
+- [ ] (Optional) Implement repository in `core_sdk_impl/lib/src/repositories/`
+- [ ] Run code generation with `build_runner`
+- [ ] Use in BLoC/Cubit for state management
+- [ ] Test the integration
+
+---
+
+## 🎭 State Management
+
+This project uses **BLoC pattern** with **Cubit** for state management.
+
+### BLoC Structure
+
+```
+lib/src/blocs/
+├── app_language/        # App language selection
+├── auth/                # Authentication state
+├── device_status/       # Network connectivity
+├── profile/             # User profile
+└── [feature]/           # Feature-specific state
+```
+
+### Creating a New Cubit
+
+```dart
+// lib/src/blocs/counter/counter_cubit.dart
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class CounterCubit extends Cubit<int> {
+  CounterCubit() : super(0);
+
+  void increment() => emit(state + 1);
+  void decrement() => emit(state - 1);
+}
+```
+
+### Using Cubit in UI
+
+```dart
+// Provide the cubit
+BlocProvider(
+  create: (_) => CounterCubit(),
+  child: CounterScreen(),
+)
+
+// Listen to state changes
+BlocBuilder<CounterCubit, int>(
+  builder: (context, count) {
+    return Text('Count: $count');
+  },
+)
+
+// Access cubit methods
+context.read<CounterCubit>().increment();
+```
+
+---
+
+## 🧭 Routing
+
+This project uses **go_router** for declarative, type-safe routing.
+
+### Route Structure
+
+```
+lib/src/routes/
+├── auth/
+│   └── auth_route.dart      # Authentication routes
+├── dashboard/
+│   └── dashboard_route.dart # Dashboard routes
+├── home/
+│   └── home_route.dart      # Home routes
+└── routes.dart              # Main router configuration
+```
+
+### Adding a New Route
+
+**1. Define route path**:
+
+```dart
+// lib/src/routes/settings/settings_route.dart
+import 'package:go_router/go_router.dart';
+import 'package:clean_starter/src/ui/screens/settings/settings_screen.dart';
+
+class SettingsRoute {
+  static const String settings = '/settings';
+
+  static List<GoRoute> routes = [
+    GoRoute(
+      path: settings,
+      builder: (context, state) => const SettingsScreen(),
+    ),
+  ];
+}
+```
+
+**2. Register in main router**:
+
+```dart
+// lib/src/routes/routes.dart
+import 'settings/settings_route.dart';
+
+class Routes {
+  static GoRouter create(AuthCubit authCubit) {
+    return GoRouter(
+      routes: [
+        ...AuthRoutes.routes,
+        DashboardRoute.route,
+        ...HomeRoutes.routes,
+        ...SettingsRoute.routes, // Add this
+      ],
+    );
+  }
+}
+```
+
+**3. Navigate to route**:
+
+```dart
+// Push navigation
+context.push(SettingsRoute.settings);
+
+// Replace navigation
+context.go(SettingsRoute.settings);
+
+// Pop navigation
+context.pop();
+```
+
+---
+
+## 💾 Database
+
+This project uses **Isar** database through the `isar_e2m` wrapper package.
+
+### Database Structure
+
+```
+packages/core_sdk_impl/lib/src/database/
+├── daos/                # Data Access Objects
+│   ├── login_dao.dart
+│   └── [entity]_dao.dart
+├── entities/            # Isar entities
+│   ├── login_entity.dart
+│   └── [entity]_entity.dart
+└── database.dart        # Database initialization
+```
+
+### Creating a New Entity
+
+**1. Define Isar entity**:
+
+```dart
+// packages/core_sdk_impl/lib/src/database/entities/user_entity.dart
+import 'package:isar/isar.dart';
+
+part 'user_entity.g.dart';
+
+@collection
+class UserEntity {
+  Id id = Isar.autoIncrement;
+  
+  late String userId;
+  late String name;
+  late String email;
+  String? avatar;
+}
+```
+
+**2. Create DAO**:
+
+```dart
+// packages/core_sdk_impl/lib/src/database/daos/user_dao.dart
+import 'package:isar_e2m/isar_e2m.dart';
+import 'package:core_sdk_impl/src/database/entities/user_entity.dart';
+import 'package:injectable/injectable.dart';
+
+@singleton
+class UserDao extends BaseDao<UserEntity> {
+  Future<UserEntity?> findByUserId(String userId) async {
+    return await isar.userEntitys
+        .filter()
+        .userIdEqualTo(userId)
+        .findFirst();
+  }
+}
+```
+
+**3. Register in database**:
+
+```dart
+// packages/core_sdk_impl/lib/src/database/database.dart
+static Future<void> initialize() async {
+  await IsarE2M.initialize(
+    schemas: [
+      LoginEntitySchema,
+      UserEntitySchema, // Add this
+    ],
+  );
+}
+```
+
+**4. Generate code**:
+
+```bash
+cd packages/core_sdk_impl
+dart run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+## 🛠️ Development Workflow
+
+### Initial Setup
+
+**Windows**:
+```bash
+setup_windows.bat
+```
+
+**Linux/macOS**:
+```bash
+chmod +x setup_linux.sh
+./setup_linux.sh
+```
+
+### Common Commands
+
+```bash
+# Get dependencies
+flutter pub get
+
+# Run the app
+flutter run
+
+# Run in specific flavor
+flutter run --flavor dev
+flutter run --flavor prod
+
+# Build APK
+flutter build apk --flavor prod --release
+
+# Generate code (freezed, json_serializable, injectable)
+dart run build_runner build --delete-conflicting-outputs
+
+# Watch for changes
+dart run build_runner watch
+
+# Generate assets (flutter_gen)
+dart run build_runner build --delete-conflicting-outputs
+
+# Analyze code
+flutter analyze
+
+# Run tests
+flutter test
+
+# Clean build
+flutter clean
+flutter pub get
+```
+
+### Code Generation
+
+This project uses several code generators:
+
+| Generator | Purpose | Annotation |
+|-----------|---------|------------|
+| **freezed** | Immutable models with copyWith | `@freezed` |
+| **json_serializable** | JSON serialization | `@JsonSerializable()` |
+| **injectable** | Dependency injection | `@singleton`, `@injectable` |
+| **flutter_gen** | Asset references | Automatic |
+
+**Run all generators**:
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+## ✨ Best Practices
+
+### 1. **Follow Clean Architecture Principles**
+
+- Keep layers separated
+- Domain layer should not depend on data or presentation
+- Use dependency inversion (depend on abstractions, not implementations)
+
+### 2. **Use Type-Safe Assets**
+
+```dart
+// ❌ Bad - String paths
+Image.asset('assets/images/logo.png');
+
+// ✅ Good - Generated assets
+Assets.images.logo.image();
+```
+
+### 3. **Handle Errors Properly**
+
+```dart
+final result = await _networks.authNetwork.login(data);
+result.fold(
+  (failure) {
+    // Handle error
+    SnackBarHelper.showError(failure.message);
+  },
+  (success) {
+    // Handle success
+  },
+);
+```
+
+### 4. **Use Dependency Injection**
+
+```dart
+// ❌ Bad - Direct instantiation
+final api = LoginApi();
+
+// ✅ Good - Dependency injection
+final api = DataGetIt.shared.get<LoginApi>();
+```
+
+### 5. **Keep BLoCs/Cubits Simple**
+
+- One Cubit per feature
+- Emit new states, don't mutate
+- Use meaningful state classes
+
+### 6. **Organize Imports**
+
+```dart
+// 1. Dart imports
+import 'dart:async';
+
+// 2. Flutter imports
+import 'package:flutter/material.dart';
+
+// 3. Package imports
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+// 4. Project imports
+import 'package:clean_starter/src/blocs/auth/auth_cubit.dart';
+```
+
+### 7. **Use Const Constructors**
+
+```dart
+// ✅ Good - Const for better performance
+const SizedBox(height: 16);
+const Text('Hello');
+```
+
+### 8. **Responsive UI**
+
+```dart
+// Use ScreenUtil for responsive sizing
+Container(
+  width: 100.w,    // 100 logical pixels width
+  height: 50.h,    // 50 logical pixels height
+  padding: EdgeInsets.all(16.r), // Responsive padding
+);
+
+// Use responsive font sizes
+Text(
+  'Hello',
+  style: TextStyle(fontSize: 16.sp),
+);
+```
+
+### 9. **Localization**
+
+```dart
+// Use generated localization
+Text(AppLocalizations.of(context)!.login);
+```
+
+### 10. **Logging**
+
+```dart
+// Use Logger for debugging
+Logger.shared.log('User logged in: $userId');
+```
+
+---
+
+## 🎓 Summary
+
+This Flutter Clean Architecture Starter provides:
+
+1. **Modular Architecture**: Separated into local packages for better organization
+2. **Type-Safe Assets**: Using flutter_gen for compile-time asset safety
+3. **Clean API Integration**: Clear pattern for adding new APIs
+4. **State Management**: BLoC/Cubit pattern for predictable state
+5. **Navigation**: Declarative routing with go_router
+6. **Database**: Isar for high-performance local storage
+7. **Code Generation**: Automated code generation for models, DI, and assets
+
+### Quick Reference
+
+| Task | Command |
+|------|---------|
+| Add new API | Follow [How to Integrate New APIs](#how-to-integrate-new-apis) |
+| Add new asset | Add to `assets/`, run `dart run build_runner build` |
+| Add new route | Create in `lib/src/routes/[feature]/` |
+| Add new screen | Create in `lib/src/ui/screens/[feature]/` |
+| Add new cubit | Create in `lib/src/blocs/[feature]/` |
+| Generate code | `dart run build_runner build --delete-conflicting-outputs` |
+
+---
+
+**Need Help?** Review the existing code examples in the project for reference implementations.

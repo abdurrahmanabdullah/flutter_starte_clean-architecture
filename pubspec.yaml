@@ -45,10 +45,18 @@ dev_dependencies:
     sdk: flutter
 
   build_runner:
+  flutter_gen: ^5.12.0
   flutter_launcher_icons:
   flutter_lints:
   flutter_native_splash:
   freezed:
+
+flutter_gen:
+  output: lib/gen/
+  line_length: 80
+  
+  integrations:
+    flutter_svg: true
 
 flutter_launcher_icons:
   image_path: "assets/images/logo.png"
