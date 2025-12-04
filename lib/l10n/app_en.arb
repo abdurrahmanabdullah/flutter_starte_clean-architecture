@@ -1,0 +1,125 @@
+{
+  "@@locale": "en",
+  "welcome": "Welcome",
+  "@welcome": {
+    "description": "Welcome"
+  },
+  "letsContinueYourAccount": "Let’s continue your account.",
+  "@letsContinueYourAccount": {
+    "description": "Let’s continue your account."
+  },
+  "userName": "User Name",
+  "@userName": {
+    "description": "User Name"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Password"
+  },
+  "rememberMe": "Remember me",
+  "@rememberMe": {
+    "description": "Remember me"
+  },
+  "forgotPassword": "Forgot Password?",
+  "@forgotPassword": {
+    "description": "Forgot Password?"
+  },
+  "permissionRequired": "Please turn on {permission} permission to continue",
+  "@permissionRequired": {
+    "description": "Request app permission",
+    "placeholders": {
+      "permission": {
+        "type": "String",
+        "example": "Camera"
+      }
+    }
+  },
+  "openSettings": "Open Settings",
+  "@openSettings": {
+    "description": "Open Settings"
+  },
+  "signIn": "Sign In",
+  "@signIn": {
+    "description": "Sign In"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home"
+  },
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile"
+  },
+  "signUpNow": "Sign Up Now",
+  "@signUpNow": {
+    "description": "Sign Up Now"
+  },
+  "invalidPassword": "Invalid Password",
+  "@invalidPassword": {
+    "description": "Invalid Password"
+  },
+  "fieldEmpty": "Field is empty!",
+  "@fieldEmpty": {
+    "description": "Field is empty!"
+  },
+  "search": "Search..",
+  "@search": {
+    "description": "Search.."
+  },
+  "notification": "Notification",
+  "@notification": {
+    "description": "Notification"
+  },
+  "invalidUserName": "Invalid Username",
+  "@invalidUserName": {
+    "description": "Invalid Username"
+  },
+  "loginSuccess": "Login Successful",
+  "@loginSuccess": {
+    "description": "Login Successful"
+  },
+  "looksEmptyHere": "Looks empty here..",
+  "@looksEmptyHere": {
+    "description": "Looks empty here.."
+  },
+  "chooseFile": "Choose File",
+  "@chooseFile": {
+    "description": "Choose File"
+  },
+  "appName": "Clean Starter",
+  "@appName": {
+    "description": "Clean Starter"
+  },
+  "likes": "Likes",
+  "@likes": {
+    "description": "Likes"
+  },
+  "dislikes": "Dislikes",
+  "@dislikes": {
+    "description": "Dislikes"
+  },
+  "views": "Views",
+  "@views": {
+    "description": "Views"
+  },
+  "firstName": "First Name",
+  "@firstName": {
+    "description": "First Name"
+  },
+  "lastName": "Last Name",
+  "@lastName": {
+    "description": "Last Name"
+  },
+  "gender": "Gender",
+  "@gender": {
+    "description": "Gender"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Email"
+  },
+  "turnOnInternetToContinue": "Turn on Internet to continue",
+  "@turnOnInternetToContinue": {
+    "description": "Turn on Internet to continue"
+  }
+}

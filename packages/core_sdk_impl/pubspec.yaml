@@ -1,0 +1,47 @@
+name: core_sdk_impl
+description: "Core Packages Implementation"
+version: 0.0.1
+publish_to: "none"
+
+isar_version: &isar_version 3.3.0-dev.3
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  equatable:
+  path_provider:
+  json_annotation:
+  get_it:
+  injectable:
+  dio:
+  intl:
+  dartz:
+  core_sdk:
+    path: ../core_sdk
+  common_sdk:
+    path: ../common_sdk
+  json_client:
+    path: ../json_client
+  isar_e2m:
+    path: ../isar_e2m
+
+  isar_community: *isar_version
+  isar_community_flutter_libs: *isar_version
+
+dev_dependencies:
+  timezone:
+  flutter_lints:
+  json_serializable:
+  build_runner: any
+  isar_community_generator: *isar_version
+  injectable_generator:
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/json/

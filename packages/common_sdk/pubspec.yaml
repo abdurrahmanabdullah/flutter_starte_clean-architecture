@@ -1,0 +1,21 @@
+name: common_sdk
+description: "Common Packages"
+version: 0.0.4
+homepage: common
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  get_it: ^8.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+
+flutter:
+

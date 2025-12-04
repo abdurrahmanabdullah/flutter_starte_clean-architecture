@@ -1,0 +1,36 @@
+name: core_sdk
+description: "Core Packages"
+version: 0.0.1
+publish_to: "none"
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path_provider:
+  json_annotation:
+  get_it:
+  injectable:
+  freezed_annotation:
+  equatable:
+  common_sdk:
+    path: ../common_sdk
+  json_client:
+    path: ../json_client
+  isar_e2m:
+    path: ../isar_e2m
+
+dev_dependencies:
+  flutter_lints:
+  json_serializable:
+  freezed:
+  build_runner: any
+  injectable_generator:
+
+
+flutter:
+  uses-material-design: true
+  generate: true
+

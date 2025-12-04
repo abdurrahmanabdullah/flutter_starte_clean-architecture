@@ -1,0 +1,19 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - always_use_package_imports
+    - avoid_relative_lib_imports
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    constant_identifier_names: ignore
+    invalid_annotation_target: ignore
+    unused_import: error
+    missing_required_param: error
+    missing_return: error
