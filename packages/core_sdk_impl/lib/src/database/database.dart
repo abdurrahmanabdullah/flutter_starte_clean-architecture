@@ -25,7 +25,7 @@ class Database {
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
     db = await Isar.open(
-      [LoginEntitySchema, ProfileEntitySchema],
+      [LoginEntitySchema, NoteEntitySchema, ProfileEntitySchema],
       name: "core_sdk_impl",
       directory: dir.path,
     );

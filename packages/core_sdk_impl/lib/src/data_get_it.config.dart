@@ -25,9 +25,12 @@ import 'package:core_sdk_impl/src/apis/paginated_posts/paginated_posts_api.dart'
 import 'package:core_sdk_impl/src/apis/profile_api/profile_api.dart' as _i801;
 import 'package:core_sdk_impl/src/database/daos/impl/login_dao_impl.dart'
     as _i575;
+import 'package:core_sdk_impl/src/database/daos/impl/note_dao_impl.dart'
+    as _i645;
 import 'package:core_sdk_impl/src/database/daos/impl/profile_dao_impl.dart'
     as _i16;
 import 'package:core_sdk_impl/src/database/daos/login_dao.dart' as _i853;
+import 'package:core_sdk_impl/src/database/daos/note_dao.dart' as _i203;
 import 'package:core_sdk_impl/src/database/daos/profile_dao.dart' as _i540;
 import 'package:core_sdk_impl/src/networks/auth_network_impl.dart' as _i518;
 import 'package:core_sdk_impl/src/networks/network_impl.dart' as _i620;
@@ -65,6 +68,7 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.singleton<_i853.LoginDao>(() => _i575.LoginDaoImpl());
     gh.singleton<_i301.AuthRepository>(() => _i146.AuthRepositoryImpl());
+    gh.singleton<_i203.NoteDao>(() => _i645.NoteDaoImpl());
     gh.singleton<_i946.AuthNetwork>(() => _i518.AuthNetworkImpl());
     gh.singleton<_i946.ProfileNetwork>(() => _i235.ProfileNetworkImpl());
     gh.singleton<_i298.ProfileRepository>(() => _i972.ProfileRepositoryImpl());

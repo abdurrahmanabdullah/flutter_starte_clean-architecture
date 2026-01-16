@@ -744,6 +744,475 @@ dart run build_runner build --delete-conflicting-outputs
 
 ---
 
+## 📝 Example: Adding a Create Note Feature
+
+This section provides a complete, step-by-step guide for adding a new feature with local database storage, using the **Create Note** feature as a real example.
+
+### Overview
+
+We'll create a feature that allows users to create notes stored in the local Isar database, accessible via a floating action button (FAB) in the bottom navigation bar.
+
+### Folder & File Structure
+
+```
+📁 Project Root
+├── 📁 packages/
+│   ├── 📁 core_sdk/                          # Domain Layer
+│   │   └── 📁 lib/domain/models/
+│   │       └── 📁 note/                       # ✨ NEW: Note domain models
+│   │           ├── models.dart                # Barrel file with imports
+│   │           └── note_model.dart            # Freezed model definition
+│   │
+│   └── 📁 core_sdk_impl/                      # Data Layer
+│       └── 📁 lib/src/
+│           └── 📁 database/
+│               ├── 📁 entities/
+│               │   ├── entities.dart          # ✏️ MODIFIED: Added note_entity part
+│               │   └── note_entity.dart       # ✨ NEW: Isar entity
+│               ├── 📁 daos/
+│               │   ├── note_dao.dart          # ✨ NEW: DAO interface
+│               │   └── 📁 impl/
+│               │       └── note_dao_impl.dart # ✨ NEW: DAO implementation
+│               └── database.dart              # ✏️ MODIFIED: Registered NoteEntitySchema
+│
+└── 📁 lib/src/
+    ├── 📁 blocs/
+    │   └── 📁 note/                           # ✨ NEW: Note state management
+    │       └── create_note_cubit.dart         # Cubit for create operation
+    │
+    └── 📁 ui/
+        ├── 📁 screens/dashboard/components/
+        │   └── custom_bottom_navigation_bar.dart  # ✏️ MODIFIED: Added FAB
+        │
+        └── 📁 widgets/custom_bottom_modal_sheet/
+            └── create_note_bottom_sheet.dart      # ✨ NEW: Bottom sheet UI
+```
+
+### Step-by-Step Implementation
+
+#### Step 1: Create Domain Model
+
+**Location**: `packages/core_sdk/lib/domain/models/note/`
+
+Create the freezed model for immutability and JSON serialization:
+
+**`note_model.dart`**:
+```dart
+part of 'models.dart';
+
+@freezed
+sealed class NoteModel with _$NoteModel {
+  const factory NoteModel({
+    required String id,
+    required String title,
+    required String content,
+    @JsonKey(
+      fromJson: DateTimeConverter.fromJson,
+      toJson: DateTimeConverter.toJson,
+    )
+    required DateTime createdAt,
+    @JsonKey(
+      fromJson: DateTimeConverter.fromJson,
+      toJson: DateTimeConverter.toJson,
+    )
+    required DateTime updatedAt,
+  }) = _NoteModel;
+
+  factory NoteModel.fromJson(Map<String, dynamic> json) =>
+      _$NoteModelFromJson(json);
+
+  factory NoteModel.create({
+    required String title,
+    required String content,
+  }) =>
+      NoteModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: title,
+        content: content,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+}
+```
+
+**`models.dart`** (barrel file):
+```dart
+import 'package:core_sdk/domain/utills/date_time_converter.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'models.g.dart';
+part 'models.freezed.dart';
+part 'note_model.dart';
+```
+
+**Export in main models.dart**:
+```dart
+// packages/core_sdk/lib/domain/models/models.dart
+export 'note/models.dart';
+```
+
+#### Step 2: Create Isar Entity
+
+**Location**: `packages/core_sdk_impl/lib/src/database/entities/`
+
+**`note_entity.dart`**:
+```dart
+part of 'entities.dart';
+
+@Collection(accessor: 'notes')
+class NoteEntity extends BaseNoSqlEntity {
+  @Index(unique: true)
+  String id = '';
+  String title = '';
+  String content = '';
+  DateTime createdAt = DateTime.now();
+  DateTime updatedAt = DateTime.now();
+
+  NoteEntity();
+
+  factory NoteEntity.fromModel(NoteModel model) {
+    final entity = NoteEntity();
+    entity.id = model.id;
+    entity.title = model.title;
+    entity.content = model.content;
+    entity.createdAt = model.createdAt;
+    entity.updatedAt = model.updatedAt;
+    return entity;
+  }
+
+  NoteModel toModel() {
+    return NoteModel(
+      id: id,
+      title: title,
+      content: content,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+}
+```
+
+**Register in `entities.dart`**:
+```dart
+part 'note_entity.dart';  // Add this line
+```
+
+**Register in `database.dart`**:
+```dart
+db = await Isar.open(
+  [LoginEntitySchema, NoteEntitySchema, ProfileEntitySchema],  // Add NoteEntitySchema
+  name: "core_sdk_impl",
+  directory: dir.path,
+);
+```
+
+#### Step 3: Create DAO (Data Access Object)
+
+**Location**: `packages/core_sdk_impl/lib/src/database/daos/`
+
+**`note_dao.dart`** (interface):
+```dart
+import 'package:common_sdk/common_sdk.dart';
+import 'package:core_sdk/domain/domain.dart';
+import 'package:isar_e2m/isar_m2e.dart';
+
+abstract class NoteDao extends BaseNoSqlDao<NoteModel, String> {
+  Future<List<NoteModel>> getAllNotes();
+  Future<void> createNote(NoteModel note);
+  Future<void> updateNote(NoteModel note);
+  Future<void> deleteNote(String id);
+}
+```
+
+**`impl/note_dao_impl.dart`** (implementation):
+```dart
+import 'package:common_sdk/common_sdk.dart';
+import 'package:core_sdk/domain/models/note/models.dart';
+import 'package:core_sdk_impl/src/database/daos/note_dao.dart';
+import 'package:core_sdk_impl/src/database/database.dart';
+import 'package:core_sdk_impl/src/database/entities/entities.dart';
+import 'package:injectable/injectable.dart';
+import 'package:isar_community/isar.dart';
+import 'package:isar_e2m/isar_m2e.dart';
+
+@Singleton(as: NoteDao)
+class NoteDaoImpl extends BaseNoSqlDaoImpl<NoteModel, NoteEntity, String>
+    implements NoteDao {
+  NoteDaoImpl();
+
+  @override
+  IsarCollection<NoteEntity> get entityCollection => Database.shared.db.notes;
+
+  @override
+  Optional<NoteEntity> convertToEntity(NoteModel? model) {
+    if (model == null) return Optional.empty();
+    return Optional.ofNullable(NoteEntity.fromModel(model));
+  }
+
+  @override
+  Optional<NoteModel> convertToModel(NoteEntity? entity) =>
+      Optional.ofNullable(entity?.toModel());
+
+  @override
+  QueryBuilder<NoteEntity, NoteEntity, QAfterWhereClause> idEqual(
+    QueryBuilder<NoteEntity, NoteEntity, QWhereClause> queryBuilder,
+    String value,
+  ) => queryBuilder.idEqualTo(value);
+
+  @override
+  String idFromModel(NoteModel model) => model.id;
+
+  @override
+  Future<List<NoteModel>> getAllNotes() async => await getAll();
+
+  @override
+  Future<void> createNote(NoteModel note) async => await upsert(note);
+
+  @override
+  Future<void> updateNote(NoteModel note) async => await upsert(note);
+
+  @override
+  Future<void> deleteNote(String id) async => await delete(id);
+}
+```
+
+#### Step 4: Create State Management (Cubit)
+
+**Location**: `lib/src/blocs/note/`
+
+**`create_note_cubit.dart`**:
+```dart
+import 'package:common_sdk/common_sdk.dart';
+import 'package:core_sdk/domain/models/note/models.dart';
+import 'package:core_sdk_impl/src/data_get_it.dart';
+import 'package:core_sdk_impl/src/database/daos/note_dao.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class CreateNoteCubit extends Cubit<NoteModel?> {
+  CreateNoteCubit() : super(null);
+
+  final _noteDao = DataGetIt.shared.get<NoteDao>();
+
+  Future<void> createNote({
+    required String title,
+    required String content,
+  }) async {
+    try {
+      final note = NoteModel.create(
+        title: title,
+        content: content,
+      );
+      await _noteDao.createNote(note);
+      emit(note);
+      Logger.shared.log('Note created: ${note.id}');
+    } catch (e) {
+      Logger.shared.log('Failed to create note: $e');
+      emit(null);
+    }
+  }
+
+  void reset() => emit(null);
+}
+```
+
+#### Step 5: Create UI (Bottom Sheet)
+
+**Location**: `lib/src/ui/widgets/custom_bottom_modal_sheet/`
+
+**`create_note_bottom_sheet.dart`**:
+```dart
+import 'package:clean_starter/src/blocs/note/create_note_cubit.dart';
+import 'package:clean_starter/src/ui/default_imports.dart';
+import 'package:core_sdk/domain/models/note/models.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class CreateNoteBottomSheet extends StatefulWidget {
+  const CreateNoteBottomSheet({super.key});
+
+  @override
+  State<CreateNoteBottomSheet> createState() => _CreateNoteBottomSheetState();
+}
+
+class _CreateNoteBottomSheetState extends State<CreateNoteBottomSheet> {
+  final _titleController = TextEditingController();
+  final _contentController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => CreateNoteCubit(),
+      child: Builder(
+        builder: (context) {
+          return BlocListener<CreateNoteCubit, NoteModel?>(
+            listener: (context, state) {
+              if (state != null) {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Note created successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.only(
+                left: 16.w,
+                right: 16.w,
+                top: 16.w,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16.w,
+              ),
+              decoration: BoxDecoration(
+                color: context.appColorScheme.fillMain,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16.r),
+                  topRight: Radius.circular(16.r),
+                ),
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title input, content input, create button
+                    // ... (see full implementation in the file)
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+#### Step 6: Add FAB to Bottom Navigation
+
+**Location**: `lib/src/ui/screens/dashboard/components/custom_bottom_navigation_bar.dart`
+
+Add imports:
+```dart
+import 'package:clean_starter/src/ui/widgets/custom_bottom_modal_sheet/create_note_bottom_sheet.dart';
+import 'package:clean_starter/src/ui/widgets/custom_bottom_modal_sheet/custom_bottom_modal_sheet.dart';
+```
+
+Add FAB between navigation items:
+```dart
+Row(
+  children: [
+    Expanded(child: BottomNavItem(...)), // Home
+    
+    // Create Icon Button (FAB)
+    Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8.w),
+      child: GestureDetector(
+        onTap: () {
+          CustomBottomModalSheet.open(
+            context,
+            const CreateNoteBottomSheet(),
+          );
+        },
+        child: Container(
+          width: 56.w,
+          height: 56.w,
+          decoration: BoxDecoration(
+            color: context.appColorScheme.brandPrimary,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: context.appColorScheme.brandPrimary.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Icon(Icons.add, color: context.appColorScheme.baseWhite, size: 28.w),
+        ),
+      ),
+    ),
+    
+    Expanded(child: BottomNavItem(...)), // Profile
+  ],
+)
+```
+
+#### Step 7: Run Code Generation
+
+```bash
+# Generate domain models
+cd packages/core_sdk
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+
+# Generate entities and DAOs
+cd ../core_sdk_impl
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+
+# Get dependencies for main app
+cd ../..
+flutter pub get
+```
+
+### Key Concepts Explained
+
+#### 1. **Clean Architecture Layers**
+- **Domain** (`core_sdk`): Business logic and models - no dependencies on UI or database
+- **Data** (`core_sdk_impl`): Database entities, DAOs, API implementations
+- **Presentation** (`lib/src`): UI, state management (Cubits), screens
+
+#### 2. **Dependency Injection**
+- `@Singleton(as: NoteDao)` - Registers `NoteDaoImpl` as singleton
+- `DataGetIt.shared.get<NoteDao>()` - Retrieves the registered instance
+- Automatically configured by `injectable` package
+
+#### 3. **Isar Database**
+- `@Collection` - Marks class as Isar collection
+- `@Index(unique: true)` - Creates unique index on field
+- `BaseNoSqlEntity` - Provides `tempId` and `updatedDateTime`
+- Code generation creates `NoteEntitySchema`
+
+#### 4. **BLoC Provider Context**
+- Use `Builder` widget to get correct context
+- `BlocProvider` creates the cubit
+- `Builder` provides new context that has access to the provider
+- `context.read<CreateNoteCubit>()` accesses the cubit
+
+#### 5. **Freezed Models**
+- `@freezed` - Generates immutable models with `copyWith`
+- `part of 'models.dart'` - Links to barrel file
+- Factory constructors for convenience (`create()`, `empty()`)
+
+### Testing the Feature
+
+1. Run the app: `flutter run`
+2. Tap the **+** button in bottom navigation
+3. Fill in title and content
+4. Tap "Create Note"
+5. Note is saved to Isar database
+6. Success message appears
+
+### Common Patterns to Follow
+
+✅ **Always use dependency injection** for DAOs and services  
+✅ **Keep models immutable** with freezed  
+✅ **Separate concerns** - UI, business logic, data access  
+✅ **Use Builder pattern** when providing and consuming in same widget  
+✅ **Run code generation** after creating models/entities  
+✅ **Follow existing folder structure** for consistency
+
+---
+
 ## 🛠️ Development Workflow
 
 ### Initial Setup
